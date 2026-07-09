@@ -246,6 +246,7 @@ footer p{margin-bottom:4px;}
   <p id="resultInfo"></p>
   <button type="button" class="dl-btn" id="saveBtn">📂 保存先を選んで保存</button>
   <a class="dl-sub" id="dlBtn" download>そのままダウンロードする</a>
+  <p id="saveNote" style="display:none;font-size:.78rem;color:#6b675c;background:#f2efe3;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:10px;"></p>
   <button type="button" class="again" id="againBtn">つづけて別のZIPをつくる</button>
 </section>
 
@@ -427,8 +428,15 @@ if (window.showSaveFilePicker) {
   saveBtn.style.display = "none"; // ダウンロードのみ
 }
 
+const saveNote = $("saveNote");
+function showSaveNote(msg){
+  saveNote.innerHTML = msg;
+  saveNote.style.display = "block";
+}
+
 saveBtn.onclick = async () => {
   if (!lastBlob) return;
+  saveNote.style.display = "none";
   try {
     if (window.showSaveFilePicker) {
       // パソコン(Chrome/Edge): フォルダを直接指定
@@ -446,12 +454,24 @@ saveBtn.onclick = async () => {
     const f = new File([lastBlob], lastZipName, { type: "application/zip" });
     if (navigator.canShare && navigator.canShare({ files: [f] })) {
       // iPhone/iPad: 共有シート →「"ファイル"に保存」でフォルダ指定
-      await navigator.share({ files: [f] });
-      return;
+      try {
+        await navigator.share({ files: [f] });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // 利用者が取り消しただけ
+        // 共有に失敗 → 通常ダウンロードへ(下へ続く)
+      }
     }
-    $("dlBtn").click(); // 最後の手段
+    // この端末ではこの大きさのファイルを共有シートに渡せない
+    showSaveNote(
+      "ファイルが大きいため、この端末では保存先えらび(共有)が使えません。" +
+      "かわりに<b>ダウンロード</b>で保存します。<br>" +
+      "保存先フォルダは iPhone の<b>「設定」→「アプリ」→「Safari」→「ダウンロード」</b>" +
+      "で前もって変えられます(iCloud Drive・iPhone内・お好みのフォルダ)。"
+    );
+    $("dlBtn").click();
   } catch (e) {
-    if (e && e.name === "AbortError") return; // 利用者が取り消しただけ
+    if (e && e.name === "AbortError") return;
     showError("保存できませんでした:" + (e && e.message ? e.message : e));
   }
 };
@@ -463,6 +483,7 @@ $("againBtn").onclick = () => {
   resultArea.style.display = "none";
   if(lastUrl){ URL.revokeObjectURL(lastUrl); lastUrl = null; }
   lastBlob = null;
+  saveNote.style.display = "none";
   window.scrollTo({ top:0, behavior:"smooth" });
   updateGoBtn();
 };
