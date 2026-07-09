@@ -1,0 +1,16 @@
+{
+  "name": "ひみつZIP帖",
+  "short_name": "ひみつZIP",
+  "description": "動画や写真をパスワード付きZIPにする道具。すべて端末の中だけで処理します。",
+  "lang": "ja",
+  "display": "standalone",
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#f7f4ea",
+  "theme_color": "#2c5077",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
