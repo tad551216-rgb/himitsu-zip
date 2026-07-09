@@ -1,5 +1,5 @@
 /* ひみつZIP帖 service worker */
-const CACHE = "himitsu-zip-v1";
+const CACHE = "himitsu-zip-v2";
 const ASSETS = [
   "./",
   "./index.html",

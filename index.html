@@ -159,6 +159,11 @@ input:focus{outline:2px solid var(--indigo);outline-offset:1px;}
   text-decoration:none;
   box-shadow:0 2px 0 #1b3450;
 }
+.dl-sub{
+  display:block;text-align:center;
+  font-size:.8rem;color:#6b675c;
+  margin-top:8px;text-decoration:underline;cursor:pointer;
+}
 .again{
   display:block;width:100%;margin-top:10px;
   padding:10px;font-size:.9rem;
@@ -239,7 +244,8 @@ footer p{margin-bottom:4px;}
 <section class="card" id="resultArea">
   <p class="done-mark">🎁</p>
   <p id="resultInfo"></p>
-  <a class="dl-btn" id="dlBtn" download>💾 ZIPを保存する</a>
+  <button type="button" class="dl-btn" id="saveBtn">📂 保存先を選んで保存</button>
+  <a class="dl-sub" id="dlBtn" download>そのままダウンロードする</a>
   <button type="button" class="again" id="againBtn">つづけて別のZIPをつくる</button>
 </section>
 
@@ -276,6 +282,8 @@ const fileInput = $("fileInput"), fileList = $("fileList"),
 
 let files = [];       // 選択済みファイル
 let lastUrl = null;   // ObjectURL の後始末用
+let lastBlob = null;  // できあがったZIP本体
+let lastZipName = "";
 
 /* 既定のファイル名: himitsu_20260709.zip */
 (function(){
@@ -385,13 +393,16 @@ goBtn.onclick = async () => {
     bar.style.width = "100%";
     progressText.textContent = "できあがり";
 
+    lastBlob = blob;
+    lastZipName = name;
     lastUrl = URL.createObjectURL(blob);
     const dl = $("dlBtn");
     dl.href = lastUrl;
     dl.download = name;
     $("resultInfo").innerHTML =
       "<b>" + name + "</b>(" + fmtSize(blob.size) + ")<br>" +
-      "かぎの種類:" + (useAes ? "強力(AES-256)── 7-Zipなどで開けます" : "かんたん(ZipCrypto)── Windows標準で開けます");
+      "かぎの種類:" + (useAes ? "強力(AES-256)── 7-Zipなどで開けます" : "かんたん(ZipCrypto)── Windows標準で開けます") +
+      "<br><small>iPhoneでは共有シートで「\"ファイル\"に保存」を選ぶとフォルダを指定できます</small>";
     resultArea.style.display = "block";
     resultArea.scrollIntoView({ behavior:"smooth", block:"center" });
   }catch(e){
@@ -404,12 +415,54 @@ goBtn.onclick = async () => {
   }
 };
 
+/* ---- 保存先を選んで保存 ---- */
+const saveBtn = $("saveBtn");
+
+// 環境に合わせてボタンの文言を調整
+if (window.showSaveFilePicker) {
+  saveBtn.textContent = "📂 保存先を選んで保存";
+} else if (navigator.canShare) {
+  saveBtn.textContent = "📂 保存先を選んで保存(共有)";
+} else {
+  saveBtn.style.display = "none"; // ダウンロードのみ
+}
+
+saveBtn.onclick = async () => {
+  if (!lastBlob) return;
+  try {
+    if (window.showSaveFilePicker) {
+      // パソコン(Chrome/Edge): フォルダを直接指定
+      const handle = await window.showSaveFilePicker({
+        suggestedName: lastZipName,
+        types: [{ description: "ZIPファイル", accept: { "application/zip": [".zip"] } }]
+      });
+      const w = await handle.createWritable();
+      await w.write(lastBlob);
+      await w.close();
+      saveBtn.textContent = "✅ 保存しました";
+      setTimeout(() => { saveBtn.textContent = "📂 保存先を選んで保存"; }, 2500);
+      return;
+    }
+    const f = new File([lastBlob], lastZipName, { type: "application/zip" });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      // iPhone/iPad: 共有シート →「"ファイル"に保存」でフォルダ指定
+      await navigator.share({ files: [f] });
+      return;
+    }
+    $("dlBtn").click(); // 最後の手段
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // 利用者が取り消しただけ
+    showError("保存できませんでした:" + (e && e.message ? e.message : e));
+  }
+};
+
 $("againBtn").onclick = () => {
   files = [];
   renderList();
   pwInput.value = "";
   resultArea.style.display = "none";
   if(lastUrl){ URL.revokeObjectURL(lastUrl); lastUrl = null; }
+  lastBlob = null;
   window.scrollTo({ top:0, behavior:"smooth" });
   updateGoBtn();
 };
